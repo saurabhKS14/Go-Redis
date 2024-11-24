@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -21,13 +22,37 @@ func main() {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
+
+	conn, err := l.Accept()
+	if err != nil {
+		fmt.Println("Error accepting connection: ", err.Error())
+		os.Exit(1)
+	}
+
+	buf := make([]byte, 1024)
 	for {
-		conn, err := l.Accept()
+		data, err := conn.Read(buf)
+
 		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
-			os.Exit(1)
+			if err.Error() == "EOF" {
+				fmt.Println("Reached End of Line")
+				break
+			}
+		}
+		if data == 0 {
+			fmt.Println("No Data Read")
+			break
 		}
 
-		conn.Write([]byte("+PONG\r\n"))
+		messages := strings.Split(string(buf), "\r\n")
+
+		for _, message := range messages {
+			switch message {
+			case "PING":
+				conn.Write([]byte("+PONG\r\n"))
+			default:
+				fmt.Println("Received Data: ", string(buf))
+			}
+		}
 	}
 }
